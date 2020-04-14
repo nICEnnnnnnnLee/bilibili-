@@ -1,5 +1,6 @@
 import base64
 import time
+import json
 from io import BytesIO
 #bytesio 是基于内存的io读写方式
 from PIL import Image
@@ -9,12 +10,18 @@ from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from Tools.scripts.pysource import binary_re
 
 class Bilibili():
     def __init__(self,user,pwd):
         self.user=user
         self.pwd=pwd
-        self.browser=webdriver.Firefox()
+        options = webdriver.FirefoxOptions()
+        # 使用headless无界面浏览器模式
+        options.add_argument('--headless') # 增加无界面选项
+        options.add_argument('--disable-gpu') # 如果不加这个选项，有时定位会出现问题
+        self.browser=webdriver.Firefox(options = options)
+#         self.browser=webdriver.Firefox()
         self.wait=WebDriverWait(self.browser,50)
         self.url='https://passport.bilibili.com/login'
     def open(self):
@@ -33,8 +40,11 @@ class Bilibili():
         )
         login_butten.click()
         time.sleep (3)
-        login_butten.click()
-        time.sleep (3)#有时第一次betten_click滑动验证码弹不出来，因此第二次点击，增加验证码弹出机率
+        try:
+            login_butten.click()
+            time.sleep (3)
+        except Exception:
+            pass
         #login_butten1 = self.browser.find_element_by_xpath ('//a[@class="btn btn-login"]')
         print('账号密码输入成功')
     def get_geetest_img(self):
@@ -80,19 +90,17 @@ class Bilibili():
         ActionChains(self.browser).click_and_hold(on_element=slider).perform()
         ActionChains(self.browser).move_by_offset(xoffset=gap/2,yoffset=0).perform()
         time.sleep(0.5)
-        ActionChains (self.browser).move_by_offset (xoffset=gap/2, yoffset=0).perform ( )
+        ActionChains (self.browser).move_by_offset (xoffset=gap/2, yoffset=0).perform()
         time.sleep (0.5)#拟人操作
         ActionChains(self.browser).release().perform()
     def login_success(self):
         #判断是否登陆成功
         try:
-            return bool(
-                WebDriverWait(self.browser,5).until(
-                    EC.presence_of_element_located((
-                        By.XPATH,'//a[@title="消息"]'
-                    ))
-                )
+            WebDriverWait(self.browser,5).until(
+                EC.text_to_be_present_in_element((
+                    By.CSS_SELECTOR, '#internationalHeader .item a[href="//message.bilibili.com/new"] span'),u'消息')
             )
+            return True
         except TimeoutException:
             return False
     def login(self):
@@ -104,11 +112,25 @@ class Bilibili():
         time.sleep(3)
 
         if self.login_success():
-            print('登陆成功')
+            print('登录成功')
         else:
             self.login()
+            
+    def quit(self):
+        self.browser.quit()
+        
+    def cookie(self):
+        params = eval(str(self.browser.get_cookies()));
+        cookie = '';
+        for item in params:
+            if('.bilibili.com' in item['domain']):
+                cookie += item["name"] + "=" + item["value"] + "; ";
+        return cookie;
+    
 if __name__=='__main__':
-    login=Bilibili('x','x')
-    login.login()
+    biliBrowser=Bilibili('x','x')
+    biliBrowser.login()
+    print(biliBrowser.cookie())
+    biliBrowser.quit()
 
 
